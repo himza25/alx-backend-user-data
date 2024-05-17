@@ -15,16 +15,14 @@ PII_FIELDS: Tuple[str, ...] = ("name", "email", "phone", "ssn", "password")
 
 def filter_datum(fields: List[str], redaction: str, message: str,
                  separator: str) -> str:
-    """
-    Obfuscates fields in a log message.
-    """
+    """Obfuscates fields in a log message."""
     pattern = '|'.join([f'{field}=[^{separator}]*' for field in fields])
     return re.sub(pattern, lambda m: f'{m.group(0).split("=")[0]}={redaction}',
                   message)
 
 
 class RedactingFormatter(logging.Formatter):
-    """ Redacting Formatter class """
+    """Redacting Formatter class"""
 
     REDACTION = "***"
     FORMAT = "[HOLBERTON] %(name)s %(levelname)s %(asctime)-15s: %(message)s"
@@ -35,18 +33,14 @@ class RedactingFormatter(logging.Formatter):
         self.fields = fields
 
     def format(self, record: logging.LogRecord) -> str:
-        """
-        Formats log record by obfuscating specified fields.
-        """
+        """Formats log record by obfuscating specified fields."""
         original = super().format(record)
         return filter_datum(self.fields, self.REDACTION, original,
                             self.SEPARATOR)
 
 
 def get_logger() -> logging.Logger:
-    """
-    Creates and returns a logger object.
-    """
+    """Creates and returns a logger object."""
     logger = logging.getLogger("user_data")
     logger.setLevel(logging.INFO)
     logger.propagate = False
@@ -61,9 +55,7 @@ def get_logger() -> logging.Logger:
 
 
 def get_db() -> mysql.connector.connection.MySQLConnection:
-    """
-    Returns a connector to the database.
-    """
+    """Returns a connector to the database."""
     return mysql.connector.connect(
         user=os.getenv('PERSONAL_DATA_DB_USERNAME', 'root'),
         password=os.getenv('PERSONAL_DATA_DB_PASSWORD', ''),
@@ -73,9 +65,7 @@ def get_db() -> mysql.connector.connection.MySQLConnection:
 
 
 def main() -> None:
-    """
-    Obtains a DB connection and retrieves all rows in the users table.
-    """
+    """Obtains a DB connection and retrieves all rows in the users table."""
     db = get_db()
     cursor = db.cursor()
     cursor.execute("SELECT * FROM users;")
