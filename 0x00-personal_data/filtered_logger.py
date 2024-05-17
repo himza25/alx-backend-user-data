@@ -9,7 +9,6 @@ from typing import List, Tuple
 import os
 import mysql.connector
 
-
 PII_FIELDS: Tuple[str, ...] = ("name", "email", "phone", "ssn", "password")
 
 
