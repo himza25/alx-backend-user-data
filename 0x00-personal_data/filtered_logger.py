@@ -1,30 +1,22 @@
 #!/usr/bin/env python3
 """
-This module provides functions to obfuscate specific fields in log messages.
+This module provides functions to obfuscate log messages.
 """
 
 import re
 import logging
 from typing import List, Tuple
+import os
+import mysql.connector
 
-# Define PII_FIELDS at the root of the module
-PII_FIELDS: Tuple[str, ...] = ("name", "email", "phone_number",
-                               "ssn", "password")
+
+PII_FIELDS: Tuple[str, ...] = ("name", "email", "phone", "ssn", "password")
 
 
 def filter_datum(fields: List[str], redaction: str, message: str,
                  separator: str) -> str:
     """
     Obfuscates fields in a log message.
-
-    Args:
-        fields (List[str]): Fields to obfuscate.
-        redaction (str): Obfuscation string.
-        message (str): Log line.
-        separator (str): Field separator.
-
-    Returns:
-        str: Obfuscated log message.
     """
     pattern = '|'.join([f'{field}=[^{separator}]*' for field in fields])
     return re.sub(pattern, lambda m: f'{m.group(0).split("=")[0]}={redaction}',
@@ -39,30 +31,21 @@ class RedactingFormatter(logging.Formatter):
     SEPARATOR = ";"
 
     def __init__(self, fields: List[str]):
-        super(RedactingFormatter, self).__init__(self.FORMAT)
+        super().__init__(self.FORMAT)
         self.fields = fields
 
     def format(self, record: logging.LogRecord) -> str:
         """
-        Formats the log record by obfuscating specified fields.
-
-        Args:
-            record (logging.LogRecord): The log record to format.
-
-        Returns:
-            str: The formatted and obfuscated log record.
+        Formats log record by obfuscating specified fields.
         """
-        original_message = super().format(record)
-        return filter_datum(self.fields, self.REDACTION, original_message,
+        original = super().format(record)
+        return filter_datum(self.fields, self.REDACTION, original,
                             self.SEPARATOR)
 
 
 def get_logger() -> logging.Logger:
     """
     Creates and returns a logger object.
-
-    Returns:
-        logging.Logger: Configured logger.
     """
     logger = logging.getLogger("user_data")
     logger.setLevel(logging.INFO)
@@ -75,3 +58,35 @@ def get_logger() -> logging.Logger:
     logger.addHandler(stream_handler)
 
     return logger
+
+
+def get_db() -> mysql.connector.connection.MySQLConnection:
+    """
+    Returns a connector to the database.
+    """
+    return mysql.connector.connect(
+        user=os.getenv('PERSONAL_DATA_DB_USERNAME', 'root'),
+        password=os.getenv('PERSONAL_DATA_DB_PASSWORD', ''),
+        host=os.getenv('PERSONAL_DATA_DB_HOST', 'localhost'),
+        database=os.getenv('PERSONAL_DATA_DB_NAME')
+    )
+
+
+def main() -> None:
+    """
+    Obtains a DB connection and retrieves all rows in the users table.
+    """
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute("SELECT * FROM users;")
+    logger = get_logger()
+    for row in cursor:
+        message = ("name={}; email={}; phone={}; ssn={}; password={};"
+                   " ip={}; last_login={}; user_agent={};").format(*row)
+        logger.info(message)
+    cursor.close()
+    db.close()
+
+
+if __name__ == "__main__":
+    main()
