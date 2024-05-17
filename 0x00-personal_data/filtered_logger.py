@@ -1,56 +1,81 @@
 #!/usr/bin/env python3
 """
-This module provides functions to obfuscate log messages.
+filtered logger
 """
-
+import csv
 import re
-import logging
 from typing import List, Tuple
-import os
+import logging
 import mysql.connector
+from os import getenv
 
 
-PII_FIELDS: Tuple[str, ...] = ("name", "email", "phone", "ssn", "password")
+PII_FIELDS: Tuple[str]
+NOT_PII = ["last_login", "user_agent", "ip"]
+
+"""Open the CSV file"""
+with open('user_data.csv', 'r') as file:
+    """
+    Create a CSV reader object
+    """
+    csv_reader = csv.reader(file)
+
+    PII_FIELDS = tuple([f for f in list(csv_reader)[0] if f not in NOT_PII])
 
 
-def filter_datum(fields: List[str], redaction: str, message: str,
+def filter_datum(fields: List[str],
+                 redaction: str,
+                 message: str,
                  separator: str) -> str:
-    """Obfuscates fields in a log message."""
-    pattern = '|'.join([f'{field}=[^{separator}]*' for field in fields])
-    return re.sub(pattern, lambda m: f'{m.group(0).split("=")[0]}={redaction}',
-                  message)
+    """
+    Regex-ing
+    """
+    new_message = message
+    for field in fields:
+        new_message = re.sub(f"(?<={field}=)[^{separator}]*",
+                             redaction,
+                             new_message,
+                             count=0, flags=0)
+    return new_message
 
 
 class RedactingFormatter(logging.Formatter):
-    """Redacting Formatter class"""
+    """ Redacting Formatter class
+        """
 
     REDACTION = "***"
     FORMAT = "[HOLBERTON] %(name)s %(levelname)s %(asctime)-15s: %(message)s"
     SEPARATOR = ";"
 
     def __init__(self, fields: List[str]):
+        """
+        class constructor
+        """
+        self.__fields = fields
         super().__init__(self.FORMAT)
-        self.fields = fields
 
     def format(self, record: logging.LogRecord) -> str:
-        """Formats log record by obfuscating specified fields."""
-        original = super().format(record)
-        return filter_datum(self.fields, self.REDACTION, original,
-                            self.SEPARATOR)
+        """
+        filter values in incoming log records
+        using filter_datum
+        """
+        record.msg = filter_datum(self.__fields,
+                                  self.REDACTION,
+                                  record.msg,
+                                  self.SEPARATOR)
+        return super().format(record)
 
 
 def get_logger() -> logging.Logger:
-    """Creates and returns a logger object."""
+    """
+    Create logger
+    """
     logger = logging.getLogger("user_data")
     logger.setLevel(logging.INFO)
     logger.propagate = False
-
-    stream_handler = logging.StreamHandler()
-    formatter = RedactingFormatter(fields=PII_FIELDS)
-    stream_handler.setFormatter(formatter)
-
-    logger.addHandler(stream_handler)
-
+    handler = logging.StreamHandler()
+    handler.setFormatter(RedactingFormatter(PII_FIELDS))
+    logger.addHandler(handler)
     return logger
 
 
@@ -88,5 +113,5 @@ def main() -> None:
     db.close()
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
