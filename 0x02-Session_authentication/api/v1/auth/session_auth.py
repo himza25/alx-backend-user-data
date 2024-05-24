@@ -1,42 +1,50 @@
 #!/usr/bin/env python3
-""" SessionAuth module for handling session authentication
 """
-from api.v1.auth.auth import Auth
+session of authentication
+"""
+from .auth import Auth
 import uuid
+from models.user import User
 
 
 class SessionAuth(Auth):
-    """ SessionAuth class for handling session authentication
+    """
+    authentication session
     """
     user_id_by_session_id = {}
 
     def create_session(self, user_id: str = None) -> str:
-        """Creates a session ID for a user_id"""
+        """
+        Create a session"""
         if user_id is None or not isinstance(user_id, str):
             return None
-        session_id = str(uuid.uuid4())
-        self.user_id_by_session_id[session_id] = user_id
-        print(f"Session created: {session_id} -> {user_id}")
-        return session_id
+        Session_id = str(uuid.uuid4())
+        self.user_id_by_session_id[Session_id] = user_id
+        return Session_id
 
     def user_id_for_session_id(self, session_id: str = None) -> str:
-        """Returns a User ID based on a Session ID"""
-        if session_id is None or not isinstance(session_id, str):
-            return None
-        user_id = self.user_id_by_session_id.get(session_id)
-        print(f"Session lookup: {session_id} -> {user_id}")
-        return user_id
+        """
+        User ID for Session ID
+        """
+        return None if session_id is None or\
+            not isinstance(session_id, str)\
+            else self.user_id_by_session_id.get(session_id)
 
-    def destroy_session(self, request=None) -> bool:
-        """Deletes the user session / logs out"""
-        if request is None:
-            return False
+    def current_user(self, request=None):
+        """
+        Use Session ID for identifying a User
+        """
         session_id = self.session_cookie(request)
-        if session_id is None:
-            return False
+        user_id = self.user_id_for_session_id(session_id)
+        return User.get(user_id)
+
+    def destroy_session(self, request=None):
+        """
+        Logout
+        """
+        session_id = self.session_cookie(request)
         user_id = self.user_id_for_session_id(session_id)
         if user_id is None:
             return False
-        print(f"Destroying session: {session_id}")
         del self.user_id_by_session_id[session_id]
         return True
