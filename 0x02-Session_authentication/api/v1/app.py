@@ -1,76 +1,49 @@
 #!/usr/bin/env python3
-"""Route module for the API"""
-from os import getenv
-from flask import Flask, jsonify, abort, request
-from flask_cors import CORS
+""" Module of session auth views
+"""
 from api.v1.views import app_views
-from api.v1.auth.auth import Auth
-from api.v1.auth.basic_auth import BasicAuth
-from api.v1.auth.session_auth import SessionAuth
-from api.v1.auth.session_exp_auth import SessionExpAuth
-from api.v1.auth.session_db_auth import SessionDBAuth
-
-app = Flask(__name__)
-CORS(app, resources={r"/api/v1/*": {"origins": "*"}})
-
-auth = None
-auth_type = getenv('AUTH_TYPE')
-if auth_type == 'session_db_auth':
-    auth = SessionDBAuth()
-elif auth_type == 'session_exp_auth':
-    auth = SessionExpAuth()
-elif auth_type == 'session_auth':
-    auth = SessionAuth()
-elif auth_type == 'basic_auth':
-    auth = BasicAuth()
-else:
-    auth = Auth()
+from flask import abort, jsonify, request
+from models.user import User
+from os import getenv
 
 
-@app.errorhandler(404)
-def not_found(error) -> str:
-    """Not found handler"""
-    return jsonify({"error": "Not found"}), 404
+@app_views.route('/auth_session/login', methods=['POST'], strict_slashes=False)
+def login():
+    """ POST /auth_session/login
+    Return:
+     - User instance based on email
+    """
+    email = request.form.get('email')
+    password = request.form.get('password')
+    if not email:
+        return jsonify({"error": "email missing"}), 400
+    if not password:
+        return jsonify({"error": "password missing"}), 400
+    try:
+        users = User.search({'email': email})
+    except Exception:
+        return jsonify({"error": "no user found for this email"}), 404
+    if not users:
+        return jsonify({"error": "no user found for this email"}), 404
+    for u in users:
+        if not u.is_valid_password(password):
+            return jsonify({"error": "wrong password"}), 401
+        from api.v1.app import auth
+        session_id = auth.create_session(u.id)
+        out = jsonify(u.to_json())
+        out.set_cookie(getenv('SESSION_NAME'), session_id)
+        return out
+    return jsonify({"error": "no user found for this email"}), 404
 
 
-@app.errorhandler(401)
-def unauthorized(error) -> str:
-    """Unauthorized handler"""
-    return jsonify({"error": "Unauthorized"}), 401
-
-
-@app.errorhandler(403)
-def forbidden(error) -> str:
-    """Forbidden handler"""
-    return jsonify({"error": "Forbidden"}), 403
-
-
-@app.before_request
-def before_request():
-    """Before request handler"""
-    if auth is None:
-        return
-    excluded_paths = [
-        '/api/v1/status/', '/api/v1/unauthorized/', '/api/v1/forbidden/',
-        '/api/v1/auth_session/login/'
-    ]
-    if not auth.require_auth(request.path, excluded_paths):
-        return
-
-    auth_header = auth.authorization_header(request)
-    session_cookie = auth.session_cookie(request)
-    if auth_header is None and session_cookie is None:
-        abort(401)
-
-    request.current_user = auth.current_user(request)
-    if request.current_user is None:
-        abort(403)
-
-
-app.register_blueprint(app_views)
-
-
-if __name__ == "__main__":
-    host = getenv("API_HOST", "0.0.0.0")
-    port = getenv("API_PORT", "5000")
-    app.run(host=host, port=port)
+@app_views.route('/auth_session/logout', methods=['DELETE'],
+                 strict_slashes=False)
+def logout():
+    """ DELETE /auth_session/logout
+    Return:
+     - Empty json
+    """
+    from api.v1.app import auth
+    if not auth.destroy_session(request):
+        abort(404)
+    return jsonify({}), 200
