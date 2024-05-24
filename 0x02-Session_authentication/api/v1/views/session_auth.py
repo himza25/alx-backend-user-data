@@ -31,13 +31,14 @@ def login():
         from api.v1.app import auth
         session_id = auth.create_session(u.id)
         out = jsonify(u.to_json())
-        out.set_cookie(getenv('SESSION_NAME'), session_id)
+        session_name = getenv('SESSION_NAME')
+        out.set_cookie(session_name, session_id)
         return out
     return jsonify({"error": "no user found for this email"}), 404
 
 
-@app_views.route('/auth_session/logout', methods=['DELETE'],
-                 strict_slashes=False)
+@app_views.route(
+    '/auth_session/logout', methods=['DELETE'], strict_slashes=False)
 def logout():
     """ DELETE /auth_session/logout
     Return:
