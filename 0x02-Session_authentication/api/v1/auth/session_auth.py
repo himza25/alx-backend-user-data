@@ -1,38 +1,43 @@
 #!/usr/bin/env python3
-""" SessionAuth module for handling session authentication
 """
-from api.v1.auth.auth import Auth
-import uuid
+SessionAuth module for handling session authentication
+"""
 
 
-class SessionAuth(Auth):
-    """ SessionAuth class for handling session authentication
-    """
-    user_id_by_session_id = {}
+from flask import request
+from typing import List, TypeVar
+from os import getenv
 
-    def create_session(self, user_id: str = None) -> str:
-        """Creates a session ID for a user_id"""
-        if user_id is None or not isinstance(user_id, str):
-            return None
-        session_id = str(uuid.uuid4())
-        self.user_id_by_session_id[session_id] = user_id
-        return session_id
 
-    def user_id_for_session_id(self, session_id: str = None) -> str:
-        """Returns a User ID based on a Session ID"""
-        if session_id is None or not isinstance(session_id, str):
-            return None
-        return self.user_id_by_session_id.get(session_id)
+class Auth:
+    """ SessionAuth class for handling session authentication """
 
-    def destroy_session(self, request=None) -> bool:
-        """Deletes the user session / logs out"""
-        if request is None:
-            return False
-        session_id = self.session_cookie(request)
-        if session_id is None:
-            return False
-        user_id = self.user_id_for_session_id(session_id)
-        if user_id is None:
-            return False
-        del self.user_id_by_session_id[session_id]
+    def require_auth(self, path: str, excluded_paths: List[str]) -> bool:
+        """Check if path is in the list of excluded paths
+        """
+        if not path or not excluded_paths:
+            return True
+        if path[-1] != '/':
+            path += '/'
+        for p in excluded_paths:
+            if path[:p.find('*')] in p[:p.find('*')]:
+                return False
         return True
+
+    def authorization_header(self, request=None) -> str:
+        """Return authorization header
+        """
+        if not request:
+            return None
+        return request.headers.get('Authorization')
+
+    def current_user(self, request=None) -> TypeVar('User'):
+        """Return None
+        """
+        return None
+
+    def session_cookie(self, request=None):
+        """Return a cookie value from a request
+        """
+        if request:
+            return request.cookies.get(getenv('SESSION_NAME'))
