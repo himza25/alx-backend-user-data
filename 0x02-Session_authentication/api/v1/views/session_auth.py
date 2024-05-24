@@ -32,7 +32,6 @@ def login():
         session_id = auth.create_session(u.id)
         out = jsonify(u.to_json())
         session_name = getenv('SESSION_NAME')
-        print(f"Setting session cookie: {session_name}={session_id}")
         out.set_cookie(session_name, session_id)
         return out
     return jsonify({"error": "no user found for this email"}), 404
@@ -46,9 +45,6 @@ def logout():
      - Empty json
     """
     from api.v1.app import auth
-    print("Attempting to destroy session")
     if not auth.destroy_session(request):
-        print("Failed to destroy session")
         abort(404)
-    print("Session destroyed successfully")
     return jsonify({}), 200
