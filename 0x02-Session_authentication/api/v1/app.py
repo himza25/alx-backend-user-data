@@ -35,7 +35,7 @@ elif os.getenv("AUTH_TYPE") == "session_db_auth":
 @app.before_request
 def run_before_each_request():
     """
-    run before each request.
+    run before
     """
     if auth is None:
         return
@@ -55,21 +55,21 @@ def run_before_each_request():
 
 @app.errorhandler(404)
 def not_found(error) -> str:
-    """ Not found handler
+    """ Not found msg
     """
     return jsonify({"error": "Not found"}), 404
 
 
 @app.errorhandler(401)
 def unauthorized(error) -> str:
-    """ Unauthorized handler
+    """ Unauthorized msg
     """
     return jsonify({"error": "Unauthorized"}), 401
 
 
 @app.errorhandler(403)
 def forbidden(error) -> str:
-    """ Forbidden handler
+    """ Forbidden msg
     """
     return jsonify({"error": "Forbidden"}), 403
 
