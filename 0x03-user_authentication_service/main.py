@@ -8,53 +8,73 @@ EMAIL = "guillaume@holberton.io"
 PASSWD = "b4l0u"
 NEW_PASSWD = "t4rt1fl3tt3"
 
+BASE_URL = "http://127.0.0.1:5000"
+
 
 def register_user(email: str, password: str) -> None:
-    """new regiter"""
-    url = "http://127.0.0.1:5000/users"
-    response = requests.post(url,
-                             data={"email": email, "password": password})
-    assert response.status_code == 200 and\
-        response.json() == {"email": email, "message": "user created"}
+    """Register a new user"""
+    url = f"{BASE_URL}/users"
+    response = requests.post(url, data={"email": email, "password": password})
+    assert response.status_code == 200
+    assert response.json() == {"email": email, "message": "user created"}
 
 
 def log_in_wrong_password(email: str, password: str) -> None:
-    """log in wrong password"""
-    pass
+    """Log in with wrong password"""
+    url = f"{BASE_URL}/sessions"
+    response = requests.post(url, data={"email": email, "password": password})
+    assert response.status_code == 401
 
 
 def log_in(email: str, password: str) -> str:
-    """log in"""
-    pass
+    """Log in with correct credentials"""
+    url = f"{BASE_URL}/sessions"
+    response = requests.post(url, data={"email": email, "password": password})
+    assert response.status_code == 200
+    assert response.json() == {"email": email, "message": "logged in"}
+    return response.cookies.get("session_id")
 
 
 def profile_unlogged() -> None:
-    """
-    profile unlogged
-    """
-    pass
+    """Access profile without logging in"""
+    url = f"{BASE_URL}/profile"
+    response = requests.get(url)
+    assert response.status_code == 403
 
 
 def profile_logged(session_id: str) -> None:
-    """
-    profile logged
-    """
-    pass
+    """Access profile while logged in"""
+    url = f"{BASE_URL}/profile"
+    response = requests.get(url, cookies={"session_id": session_id})
+    assert response.status_code == 200
+    assert "email" in response.json()
 
 
 def log_out(session_id: str) -> None:
-    """log out"""
-    pass
+    """Log out"""
+    url = f"{BASE_URL}/sessions"
+    response = requests.delete(url, cookies={"session_id": session_id})
+    assert response.status_code == 200
 
 
 def reset_password_token(email: str) -> str:
-    """reset passwd token"""
-    pass
+    """Get reset password token"""
+    url = f"{BASE_URL}/reset_password"
+    response = requests.post(url, data={"email": email})
+    assert response.status_code == 200
+    return response.json()["reset_token"]
 
 
 def update_password(email: str, reset_token: str, new_password: str) -> None:
-    """update passwd"""
-    pass
+    """Update password"""
+    url = f"{BASE_URL}/reset_password"
+    response = requests.put(url, data={
+        "email": email,
+        "reset_token": reset_token,
+        "new_password": new_password
+    })
+    assert response.status_code == 200
+    assert response.json() == {"email": email, "message": "Password updated"}
 
 
 if __name__ == "__main__":
