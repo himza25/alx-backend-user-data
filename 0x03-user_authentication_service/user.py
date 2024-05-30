@@ -1,16 +1,18 @@
 #!/usr/bin/env python3
 """
-User model
+User model for SQLAlchemy.
 """
+
 from sqlalchemy import Column, Integer, String, create_engine
 from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
 
 Base = declarative_base()
 
 
 class User(Base):
     """
-    SQLAlchemy User model for users table
+    SQLAlchemy model for the 'users' table.
     """
     __tablename__ = 'users'
 
